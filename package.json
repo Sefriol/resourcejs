@@ -27,10 +27,10 @@
   "dependencies": {
     "composable-middleware": "^0.3.0",
     "debug": "^4.1.1",
-    "fast-json-patch": "^2.2.1",
+    "fast-json-patch": "^3.0.0-1",
     "lodash": "^4.17.15",
     "moment": "^2.24.0",
-    "mongodb": "^3.4.1",
+    "mongodb": "^3.5.2",
     "node-paginate-anything": "^1.0.0"
   },
   "devDependencies": {
@@ -39,6 +39,8 @@
     "eslint": "^6.8.0",
     "eslint-config-formio": "^1.1.4",
     "express": "^4.17.1",
+    "mocha": "^7.0.1",
+    "mongoose": "^5.8.11",
     "nyc": "^15.0.0",
     "supertest": "^4.0.2"
   },
