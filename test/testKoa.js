@@ -660,6 +660,31 @@ describe('Test single resource CRUD capabilities', () => {
             assert(resource.hasOwnProperty('_id'), 'Resource ID not found');
         }));
 
+    it('/POST Reject because empty array', () => request(server)
+        .post('/test/resource1')
+        .send([])
+        .expect('Content-Type', /json/)
+        .expect(400)
+        .then((res) => {
+            const error = res.body;
+            assert.equal(error.message, 'resource1 validation failed: title: Path `title` is required.');
+            assert(error.hasOwnProperty('errors'), 'errors not found');
+        }));
+
+    it('/POST Reject because not replicaSet', () => request(server)
+        .post('/test/resource1')
+        .send([{
+            title: 'Test1',
+            description: '12345678',
+        }])
+        .expect('Content-Type', /json/)
+        .expect(400)
+        .then((res) => {
+            const error = res.body;
+            console.log(error);
+            assert.equal(error.message, 'Saving multiple documents is not supported by this server');
+        }));
+
     it('/GET The new resource', () => request(server)
         .get(`/test/resource1/${resource._id}`)
         .expect('Content-Type', /json/)

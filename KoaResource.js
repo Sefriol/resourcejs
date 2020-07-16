@@ -780,7 +780,13 @@ class Resource {
       }
 
       const Model = ctx.state.model || this.model;
-      ctx.state.model = new Model(ctx.request.body);
+      if (Array.isArray(ctx.request.body) && ctx.request.body.length) {
+        ctx.state.many = true;
+        ctx.state.model = ctx.request.body.map((model) => new Model(model));
+      }
+      else {
+        ctx.state.model = new Model(ctx.request.body);
+      }
       return await next();
     };
 
@@ -788,12 +794,30 @@ class Resource {
       debug.post('queryMiddleWare');
       const writeOptions = ctx.state.writeOptions || {};
       try {
-        ctx.state.item = await ctx.state.model.save(writeOptions);
+        if (ctx.state.many) {
+          ctx.state.session = await this.model.startSession();
+          await ctx.state.session.startTransaction();
+          writeOptions.session = ctx.state.session;
+          ctx.state.item = await Promise.all(ctx.state.model.map(model => model.save(writeOptions)));
+          await ctx.state.session.commitTransaction();
+        }
+        else {
+          ctx.state.item = await ctx.state.model.save(writeOptions);
+        }
         debug.post(ctx.state.item);
       }
       catch (err) {
         debug.post(err);
-        ctx.state.resource = { status: 400, error: err };
+        if (ctx.state.many) {
+          await ctx.state.session.abortTransaction();
+          await ctx.state.session.endSession();
+          if (err.originalError?.code === 20 && err.originalError?.codeName === 'IllegalOperation') {
+            err.message = 'Saving multiple documents is not supported by this server';
+            ctx.state.resource = { status: 400, error: err };
+          }
+          else ctx.state.resource = { status: 400, error: err };
+        }
+        else ctx.state.resource = { status: 400, error: err };
         return await lastMW(ctx);
       }
       return await next();

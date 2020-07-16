@@ -846,22 +846,22 @@ class Resource {
           res,
           item,
           () => {
-          const writeOptions = req.writeOptions || {};
-          item.save(writeOptions, (err, item) => {
-            if (err) {
-              debug.put(err);
-              return Resource.setResponse(res, { status: 400, error: err }, next);
-            }
+            const writeOptions = req.writeOptions || {};
+            item.save(writeOptions, (err, item) => {
+              if (err) {
+                debug.put(err);
+                return Resource.setResponse(res, { status: 400, error: err }, next);
+              }
 
-            return options.hooks.put.after.call(
-              this,
-              req,
-              res,
-              item,
-              Resource.setResponse.bind(Resource, res, { status: 200, item }, next)
-            );
+              return options.hooks.put.after.call(
+                this,
+                req,
+                res,
+                item,
+                Resource.setResponse.bind(Resource, res, { status: 200, item }, next)
+              );
+            });
           });
-        });
       });
     }, Resource.respond, options);
     return this;
