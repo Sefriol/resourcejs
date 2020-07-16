@@ -795,8 +795,8 @@ class Resource {
       const writeOptions = ctx.state.writeOptions || {};
       try {
         if (ctx.state.many) {
-          ctx.state.session = await this.model.startSession();
-          await ctx.state.session.startTransaction();
+          if ((ctx.state.session?.constructor?.name === 'ClientSession')) ctx.state.session = await this.model.startSession();
+          if (!ctx.state.session.inTransaction()) await ctx.state.session.startTransaction();
           writeOptions.session = ctx.state.session;
           ctx.state.item = await Promise.all(ctx.state.model.map(model => model.save(writeOptions)));
           await ctx.state.session.commitTransaction();
