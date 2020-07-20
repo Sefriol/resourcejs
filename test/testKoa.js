@@ -678,11 +678,12 @@ describe('Test single resource CRUD capabilities', () => {
             description: '12345678',
         }])
         .expect('Content-Type', /json/)
-        .expect(400)
+        .expect(500)
         .then((res) => {
             const error = res.body;
-            console.log(error);
-            assert.equal(error.message, 'Saving multiple documents is not supported by this server');
+            assert.equal(error.message, 'Error occured while trying to save document into database');
+            assert(error.hasOwnProperty('errors'), 'errors not found');
+            assert.equal(error.errors[0].name, 'MongoError');
         }));
 
     it('/GET The new resource', () => request(server)

@@ -795,9 +795,10 @@ class Resource {
       const writeOptions = ctx.state.writeOptions || {};
       try {
         if (ctx.state.many) {
-          if ((ctx.state.session?.constructor?.name === 'ClientSession')) ctx.state.session = await this.model.startSession();
+          if (utils.get(ctx, 'ctx.state.session.constructor.name') !== 'ClientSession') ctx.state.session = await this.model.startSession();
           if (!ctx.state.session.inTransaction()) await ctx.state.session.startTransaction();
           writeOptions.session = ctx.state.session;
+
           ctx.state.item = await Promise.all(ctx.state.model.map(model => model.save(writeOptions)));
           await ctx.state.session.commitTransaction();
         }
@@ -809,11 +810,17 @@ class Resource {
       catch (err) {
         debug.post(err);
         if (ctx.state.many) {
-          await ctx.state.session.abortTransaction();
+          if (ctx.state.session.inTransaction()) await ctx.state.session.abortTransaction();
           await ctx.state.session.endSession();
-          if (err.originalError?.code === 20 && err.originalError?.codeName === 'IllegalOperation') {
-            err.message = 'Saving multiple documents is not supported by this server';
-            ctx.state.resource = { status: 400, error: err };
+
+          if (err instanceof mongodb.MongoError
+            || err.originalError instanceof mongodb.MongoError
+            || err.code
+            || utils.get(err, 'err.originalError.code') ) {
+            err.errors = [Object.assign({}, err)];
+            err.message = 'Error occured while trying to save document into database';
+            err.name = 'DatabaseError';
+            ctx.state.resource = { status: 500, error: err };
           }
           else ctx.state.resource = { status: 400, error: err };
         }
