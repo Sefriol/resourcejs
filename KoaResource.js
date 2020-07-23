@@ -528,7 +528,7 @@ class Resource {
     const lastMW = compose([this._generateMiddleware.call(this, options, 'after'), Resource.respond]);
 
     // eslint-disable-next-line max-statements
-    const beforeQueryMW = async(ctx, next) => { // Callback
+    const beforeQueryMW = async(ctx, next) => {
       debug.index('beforeQueryMiddleWare');
       // Store the internal method for response manipulation.
       ctx.state.__rMethod = 'index';
@@ -602,7 +602,7 @@ class Resource {
       return await next();
     };
 
-    const queryMW = async(ctx, next) => { // Callback
+    const queryMW = async(ctx, next) => {
       debug.index('queryMiddleware');
       try {
         const items = await this.indexQuery(ctx.state.queryExec, ctx.state.query.pipeline).exec();
@@ -647,7 +647,7 @@ class Resource {
     this.methods.push('get');
     const lastMW = compose([this._generateMiddleware.call(this, options, 'after'), Resource.respond]);
 
-    const beforeQueryMW = async(ctx, next) => { // Callback
+    const beforeQueryMW = async(ctx, next) => {
       debug.get('beforeQueryMiddleware');
       // Store the internal method for response manipulation.
       ctx.state.__rMethod = 'get';
@@ -655,21 +655,21 @@ class Resource {
         debug.get('Skipping Resource');
         return await lastMW(ctx);
       }
-      ctx.state.modelQuery = (ctx.state.modelQuery || ctx.state.model || this.model).findOne();
+      ctx.state.query = (ctx.state.modelQuery || ctx.state.model || this.model).findOne();
       ctx.state.search = { '_id': ctx.params[`${this.name}Id`] };
       // Only call populate if they provide a populate query.
       const populate = Resource.getParamQuery(ctx, 'populate');
       if (populate) {
         debug.get(`Populate: ${populate}`);
-        ctx.state.modelQuery.populate(populate);
+        ctx.state.query.populate(populate);
       }
       return await next();
     };
 
-    const queryMW = async(ctx, next) => { // Callback
+    const queryMW = async(ctx, next) => {
       debug.get('queryMiddleWare');
       try {
-        ctx.state.item = await ctx.state.modelQuery.where(ctx.state.search).lean().exec();
+        ctx.state.item = await ctx.state.query.where(ctx.state.search).lean().exec();
       }
       catch (err) {
         ctx.state.resource = { status: 400, error: err };
@@ -725,9 +725,7 @@ class Resource {
     this.methods.push(`virtual/${path}`);
 
     const lastMW = compose([this._generateMiddleware.call(this, options, 'after'), Resource.respond]);
-    const beforeQueryMW = async(ctx, next) => await next();
-
-    const queryMW = async(ctx, next) => {
+    const beforeQueryMW = async(ctx, next) => {
       debug.virtual('queryMiddleWare');
       // Store the internal method for response manipulation.
       ctx.state.__rMethod = 'virtual';
@@ -736,13 +734,17 @@ class Resource {
         debug.virtual('Skipping Resource');
         return await lastMW(ctx);
       }
-      const query = ctx.state.modelQuery || ctx.state.model;
-      if (!query) {
-        ctx.state.resource = {  status: 404 };
-        return await next();
+      ctx.state.query = ctx.state.modelQuery || ctx.state.model;
+      if (!ctx.state.query) {
+        ctx.state.resource = { status: 404 };
       }
+
+      return await next();
+    };
+
+    const queryMW = async(ctx, next) => {
       try {
-        const item = await query.exec();
+        const item = await ctx.state.query.exec();
         if (!item) ctx.state.resource = { status: 404 };
         else ctx.state.resource = {  status: 200, item };
       }
@@ -782,10 +784,10 @@ class Resource {
       const Model = ctx.state.model || this.model;
       if (Array.isArray(ctx.request.body) && ctx.request.body.length) {
         ctx.state.many = true;
-        ctx.state.model = ctx.request.body.map((model) => new Model(model));
+        ctx.state.item = ctx.request.body.map((model) => new Model(model));
       }
       else {
-        ctx.state.model = new Model(ctx.request.body);
+        ctx.state.item = new Model(ctx.request.body);
       }
       return await next();
     };
@@ -799,11 +801,11 @@ class Resource {
           if (!ctx.state.session.inTransaction()) await ctx.state.session.startTransaction();
           writeOptions.session = ctx.state.session;
 
-          ctx.state.item = await Promise.all(ctx.state.model.map(model => model.save(writeOptions)));
+          ctx.state.item = await Promise.all(ctx.state.item.map(item => item.save(writeOptions)));
           await ctx.state.session.commitTransaction();
         }
         else {
-          ctx.state.item = await ctx.state.model.save(writeOptions);
+          ctx.state.item = await ctx.state.item.save(writeOptions);
         }
         debug.post(ctx.state.item);
       }
