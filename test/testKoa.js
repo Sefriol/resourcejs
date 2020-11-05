@@ -678,7 +678,7 @@ describe('Test single resource CRUD capabilities', () => {
             description: '12345678',
         }])
         .expect('Content-Type', /json/)
-        .expect(500)
+        .expect(400)
         .then((res) => {
             const error = res.body;
             assert.equal(error.message, 'Error occured while trying to save document into database');

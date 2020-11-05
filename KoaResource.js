@@ -800,8 +800,20 @@ class Resource {
           if (utils.get(ctx, 'state.session.constructor.name') !== 'ClientSession') ctx.state.session = await this.model.startSession();
           if (!ctx.state.session.inTransaction()) await ctx.state.session.startTransaction();
           writeOptions.session = ctx.state.session;
-
-          ctx.state.item = await Promise.all(ctx.state.item.map(item => item.save(writeOptions)));
+          const errors = []
+          ctx.state.item = await Promise.all(ctx.state.item.map(item => item.save(writeOptions)))
+            .catch((err) => {
+              errors.push(err)
+            })
+            .finally((result) => {
+              if (errors.length) {
+                const err = new Error(`Error${errors.length > 1 ? 's' : ''} occured while trying to save document into database`);
+                err.name = 'DatabaseError';
+                err.errors = errors
+                throw err
+              }
+              else return result
+            });
           await ctx.state.session.commitTransaction();
         }
         else {
@@ -811,22 +823,11 @@ class Resource {
       }
       catch (err) {
         debug.post(err);
-        if (ctx.state.many) {
+        if (err.name === 'DatabaseError') {
           if (ctx.state.session.inTransaction()) await ctx.state.session.abortTransaction();
           await ctx.state.session.endSession();
-
-          if (err instanceof mongodb.MongoError
-            || err.originalError instanceof mongodb.MongoError
-            || err.code
-            || utils.get(err, 'err.originalError.code') ) {
-            err.errors = [Object.assign({}, err)];
-            err.message = 'Error occured while trying to save document into database';
-            err.name = 'DatabaseError';
-            ctx.state.resource = { status: 500, error: err };
-          }
-          else ctx.state.resource = { status: 400, error: err };
         }
-        else ctx.state.resource = { status: 400, error: err };
+        ctx.state.resource = { status: 400, error: err };
         return await lastMW(ctx);
       }
       return await next();
