@@ -797,7 +797,7 @@ class Resource {
       const writeOptions = ctx.state.writeOptions || {};
       try {
         if (ctx.state.many) {
-          if (utils.get(ctx, 'ctx.state.session.constructor.name') !== 'ClientSession') ctx.state.session = await this.model.startSession();
+          if (utils.get(ctx, 'state.session.constructor.name') !== 'ClientSession') ctx.state.session = await this.model.startSession();
           if (!ctx.state.session.inTransaction()) await ctx.state.session.startTransaction();
           writeOptions.session = ctx.state.session;
 
